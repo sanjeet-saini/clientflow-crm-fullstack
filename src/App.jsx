@@ -295,8 +295,9 @@ function RecordForm({ kind, record, customers, onSave, onClose }) {
 // App: main component. Saara CRM data yahi rakhta hai (single source of truth).
 // =====================================================================
 export default function App() {
-  // data = {customers, leads, tasks}; setData se badlo; storageError = save fail hone ka message
-  const { data, setData, storageError } = useCRM();
+  // data = {customers, leads, tasks}; mutate se badlo (screen + server dono);
+  // mode = "api" (server/database) ya "local" (browser); storageError = save fail hone ka message
+  const { data, mutate, mode, storageError } = useCRM();
   // UI state:
   // form    = kaunsa form khula hai ({kind, record}) ya null
   // confirm = delete/reset confirmation popup ka data ya null
@@ -321,13 +322,19 @@ export default function App() {
   // Edit:  map() se same id wala record replace
   // Naya:  [record, ...purani list] → naya record sabse upar
   // Purana array badalte nahi, naya banate hain (immutable update) — tabhi React ko change pata chalta hai.
+  // Server par: edit → PUT /api/<kind>/<id>, naya → POST /api/<kind>
   function save(record) {
-    setData((prev) => ({
-      ...prev,
-      [form.kind]: form.record
-        ? prev[form.kind].map((r) => (r.id === record.id ? record : r))
-        : [record, ...prev[form.kind]],
-    }));
+    const { kind, record: editing } = form;
+    mutate(
+      (prev) => ({
+        ...prev,
+        [kind]: editing
+          ? prev[kind].map((r) => (r.id === record.id ? record : r))
+          : [record, ...prev[kind]],
+      }),
+      editing ? `/${kind}/${record.id}` : `/${kind}`,
+      { method: editing ? "PUT" : "POST", body: record },
+    );
     notify(
       `${form.kind.slice(0, -1)} ${form.record ? "updated" : "created"} successfully`,
     );
@@ -347,10 +354,17 @@ export default function App() {
       // Yeh function tabhi chalega jab user 'Confirm' dabayega
       action: () => {
         // Customer → cascade delete (data.js). Baaki → filter() se bas woh ek record hatao.
-        setData((prev) =>
-          kind === "customers"
-            ? removeCustomer(prev, record.id)
-            : { ...prev, [kind]: prev[kind].filter((r) => r.id !== record.id) },
+        // Server par DELETE /api/<kind>/<id> — database CASCADE se linked records hatata hai
+        mutate(
+          (prev) =>
+            kind === "customers"
+              ? removeCustomer(prev, record.id)
+              : {
+                  ...prev,
+                  [kind]: prev[kind].filter((r) => r.id !== record.id),
+                },
+          `/${kind}/${record.id}`,
+          { method: "DELETE" },
         );
         notify("Record deleted");
       },
@@ -358,11 +372,16 @@ export default function App() {
   }
   // Chhota UPDATE: ek-do field badalna (jaise lead ka stage, task complete).
   // { ...r, ...changes } = purana record copy + naye changes upar likh do
+  // Server par PATCH /api/<kind>/<id> — sirf badle hue fields bhejte hain
   const update = (kind, id, changes) => {
-    setData((prev) => ({
-      ...prev,
-      [kind]: prev[kind].map((r) => (r.id === id ? { ...r, ...changes } : r)),
-    }));
+    mutate(
+      (prev) => ({
+        ...prev,
+        [kind]: prev[kind].map((r) => (r.id === id ? { ...r, ...changes } : r)),
+      }),
+      `/${kind}/${id}`,
+      { method: "PATCH", body: changes },
+    );
     notify("Changes saved");
   };
   // Customer id se naam dhoondo; na mile to "Unassigned". ?. = optional chaining (undefined par crash nahi)
@@ -411,16 +430,19 @@ export default function App() {
               A little more organized.
               <br />A lot more connected.
             </p>
-            <small>Fictional data · Saved in this browser</small>
+            <small>
+              Fictional data ·{" "}
+              {mode === "api" ? "Saved in database" : "Saved in this browser"}
+            </small>
           </div>
           <button
             className="reset"
             onClick={() =>
               setConfirm({
                 title: "Reset demo workspace?",
-                text: "All changes in this browser will be replaced with the original fictional demo records.",
+                text: `All changes ${mode === "api" ? "in the database" : "in this browser"} will be replaced with the original fictional demo records.`,
                 action: () => {
-                  setData(demoData());
+                  mutate(() => demoData(), "/reset", { method: "POST" });
                   notify("Demo workspace reset");
                 },
               })
@@ -453,7 +475,12 @@ export default function App() {
           </div>
           <div className="topbar-right">
             <span className="saved">
-              <span className="live-dot" /> Browser workspace
+              <span className="live-dot" />{" "}
+              {mode === "api"
+                ? "Synced to server"
+                : mode === "local"
+                  ? "Browser workspace"
+                  : "Connecting…"}
             </span>
             <span className="avatar small">SS</span>
           </div>
@@ -466,60 +493,64 @@ export default function App() {
           )}
           {/* Routes: URL ke hisaab se kaunsa page dikhe. Har page ko zaroorat ka data + functions PROPS mein milte hain.
              path="*" = koi bhi galat URL → 404 message */}
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <Dashboard
-                  data={data}
-                  add={add}
-                  customerName={customerName}
-                  update={update}
-                />
-              }
-            />
-            <Route
-              path="/customers"
-              element={
-                <Customers
-                  data={data}
-                  add={add}
-                  edit={(record) => setForm({ kind: "customers", record })}
-                  remove={remove}
-                />
-              }
-            />
-            <Route
-              path="/leads"
-              element={
-                <Leads
-                  data={data}
-                  add={add}
-                  edit={(record) => setForm({ kind: "leads", record })}
-                  remove={remove}
-                  update={update}
-                  customerName={customerName}
-                />
-              }
-            />
-            <Route
-              path="/tasks"
-              element={
-                <Tasks
-                  data={data}
-                  add={add}
-                  edit={(record) => setForm({ kind: "tasks", record })}
-                  remove={remove}
-                  update={update}
-                  customerName={customerName}
-                />
-              }
-            />
-            <Route
-              path="*"
-              element={<Empty text="This page doesn't exist." />}
-            />
-          </Routes>
+          {mode === "loading" ? (
+            <p className="storage-alert">Loading workspace…</p>
+          ) : (
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <Dashboard
+                    data={data}
+                    add={add}
+                    customerName={customerName}
+                    update={update}
+                  />
+                }
+              />
+              <Route
+                path="/customers"
+                element={
+                  <Customers
+                    data={data}
+                    add={add}
+                    edit={(record) => setForm({ kind: "customers", record })}
+                    remove={remove}
+                  />
+                }
+              />
+              <Route
+                path="/leads"
+                element={
+                  <Leads
+                    data={data}
+                    add={add}
+                    edit={(record) => setForm({ kind: "leads", record })}
+                    remove={remove}
+                    update={update}
+                    customerName={customerName}
+                  />
+                }
+              />
+              <Route
+                path="/tasks"
+                element={
+                  <Tasks
+                    data={data}
+                    add={add}
+                    edit={(record) => setForm({ kind: "tasks", record })}
+                    remove={remove}
+                    update={update}
+                    customerName={customerName}
+                  />
+                }
+              />
+              <Route
+                path="*"
+                element={<Empty text="This page doesn't exist." />}
+              />
+            </Routes>
+          )}
           <footer>
             Made for better relationships.
             <span>ClientFlow CRM · Frontend demo</span>

@@ -1,16 +1,17 @@
 # ClientFlow CRM
 
-A responsive frontend CRM for a fictional web agency: manage customers, sales opportunities and follow-ups in a calm green workspace.
+A responsive CRM for a fictional web agency: manage customers, sales opportunities and follow-ups in a calm green workspace.
 
 ## Run locally
-Requires Node.js 20.19+ or 22.12+ and npm.
+Requires Node.js 22.13+ (backend uses the built-in `node:sqlite`) and npm.
 
 ```sh
 npm install
-npm run dev
+npm run server   # terminal 1: API + SQLite on http://localhost:4000/api
+npm run dev      # terminal 2: Vite, proxies /api to the server
 ```
 
-Open the Local URL printed by Vite. `npm run build` generates `dist/`; `npm run preview` previews that production build. `npm test` checks core data rules.
+Open the Local URL printed by Vite. `npm start` builds the frontend and serves app + API together from one server on port 4000. Env vars: `PORT`, `DB_PATH` (default `server/data/crm.db`, created and seeded with demo data on first run), `VITE_API_URL` (build-time, if the API lives on another origin), `CORS_ORIGIN`. `npm run build` generates `dist/`; `npm run preview` previews that production build. `npm test` checks core data rules.
 
 ## Features
 - Dashboard totals derived from the current data, pipeline value/stage breakdown, recent opportunities and pending follow-ups.
@@ -21,13 +22,18 @@ Open the Local URL printed by Vite. `npm run build` generates `dist/`; `npm run 
 - Responsive navigation, scrollable tables/pipeline, native accessible dialogs and labeled controls.
 
 ## Stack and structure
-React, Vite, JavaScript, React Router, Lucide icons and plain CSS.
+React, Vite, JavaScript, React Router, Lucide icons and plain CSS. Backend: Node.js, Express 5, SQLite (`node:sqlite`).
 
 | File | Responsibility |
 | --- | --- |
 | `src/App.jsx` | Shared layout, routes, page components, forms and CRUD actions |
 | `src/data.js` | Fictional records, IDs, formatting, validation and data rules |
-| `src/useCRM.js` | Load browser state once and persist state changes |
+| `src/useCRM.js` | Load data from the API (or localStorage fallback) and save every change |
+| `server/db.js` | SQLite schema (foreign keys, cascade, CHECK rules), seeding, row mapping |
+| `server/validate.js` | Server-side validation for every record type |
+| `server/app.js` | Express REST API: `/api/data`, `/api/{customers,leads,tasks}[/:id]` (GET/POST/PUT/PATCH/DELETE), `/api/reset` |
+| `server/index.js` | Starts the server |
+| `tests/api.test.js` | API + database tests against an in-memory SQLite DB |
 | `src/main.jsx` | React entry and HashRouter |
 | `src/styles.css` | Layout, visual system and responsive breakpoints |
 | `tests/data.test.js` | Data integrity and calculated metrics tests |
@@ -43,7 +49,10 @@ Static build output: `dist`. HashRouter uses URLs such as `/#/customers`, so ref
 
 GitHub Pages is deployed automatically by `.github/workflows/deploy.yml` on every push to `main` (install → test → build → publish `dist`).
 
-## Limitations
-This is a frontend interview demo, not a production CRM. There is no backend, authentication, cloud database, cross-device synchronization or real integration. localStorage belongs to this browser and origin; clearing browser storage removes the data. Another tab can overwrite changes (no conflict resolution). Use fictional data only. Google Fonts needs internet; system sans-serif is the fallback.
+## Backend and fallback
+With the server running, every create/edit/delete is sent to the API and stored in SQLite; the UI updates immediately and reloads from the server if a save is rejected. The top bar shows "Synced to server". If no API is reachable (e.g. the static GitHub Pages build), the app falls back to the old localStorage mode and shows "Browser workspace".
 
-Future: backend API, authentication, authorization, cloud storage, pagination, CSV export and automated browser regression tests.
+## Limitations
+This is an interview demo, not a production CRM. There is no authentication or authorization, so anyone who can reach the API can change the data. The GitHub Pages demo has no backend and keeps data in localStorage only. Concurrent edits are last-write-wins (no conflict resolution). Use fictional data only. Google Fonts needs internet; system sans-serif is the fallback.
+
+Future: authentication, authorization, cloud storage, pagination, CSV export and automated browser regression tests.

@@ -4,3 +4,4 @@ dist/
 *.local
 .npm-cache/
 INTERVIEW_GUIDE_HINGLISH.md
+server/data/
