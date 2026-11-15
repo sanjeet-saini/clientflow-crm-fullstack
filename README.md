@@ -2,6 +2,14 @@
 
 A responsive CRM for a fictional web agency: manage customers, sales opportunities and follow-ups in a calm green workspace.
 
+## Live demo
+| Link | What runs there |
+| --- | --- |
+| **Full stack (Render):** https://clientflow-crm-fullstack.onrender.com | Frontend + Express API + SQLite database. Top bar shows "Synced to server". |
+| **Frontend only (GitHub Pages):** https://sanjeet-saini.github.io/clientflow-crm-fullstack/ | Static build, no backend. Data stays in the browser (localStorage). Top bar shows "Browser workspace". |
+
+The Render free instance sleeps after inactivity, so the first visit can take 30–50 seconds. Its database resets to the demo records on every restart or redeploy. Use fictional data only.
+
 ## Run locally
 Requires Node.js 22.13+ (backend uses the built-in `node:sqlite`) and npm.
 
@@ -45,9 +53,8 @@ Deleting a customer also deletes their linked leads and tasks; confirmation name
 ## Deployment
 Static build output: `dist`. HashRouter uses URLs such as `/#/customers`, so refreshing a page works on static hosts without rewrite rules. `vite.config.js` sets `base: './'`, so the same build works on a GitHub Pages project subpath and on Netlify/Vercel (publish `dist`).
 
-**Live demo:** https://sanjeet-saini.github.io/clientflow-crm/
-
-GitHub Pages is deployed automatically by `.github/workflows/deploy.yml` on every push to `main` (install → test → build → publish `dist`).
+- **Render (full stack):** web service on the free plan, build `npm install && npm run build`, start `npm run server`. Every push to `main` redeploys automatically.
+- **GitHub Pages (frontend only):** published from the `gh-pages` branch. To update it, run `npm run build` and then `npx gh-pages -d dist -o fullstack`.
 
 ## Backend and fallback
 With the server running, every create/edit/delete is sent to the API and stored in SQLite; the UI updates immediately and reloads from the server if a save is rejected. The top bar shows "Synced to server". If no API is reachable (e.g. the static GitHub Pages build), the app falls back to the old localStorage mode and shows "Browser workspace".
