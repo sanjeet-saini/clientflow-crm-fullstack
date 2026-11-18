@@ -45,7 +45,6 @@ React, Vite, JavaScript, React Router, Lucide icons and plain CSS. Backend: Node
 | `src/main.jsx` | React entry and HashRouter |
 | `src/styles.css` | Layout, visual system and responsive breakpoints |
 | `tests/data.test.js` | Data integrity and calculated metrics tests |
-| `INTERVIEW_GUIDE_HINGLISH.md` | Implementation diary, explanation and interview demo |
 
 ## Data rules
 Deleting a customer also deletes their linked leads and tasks; confirmation names the linked record count. Dashboard totals are calculated rather than stored separately. Blank names/titles, invalid emails/phone formats and negative deal values are rejected. Data is seeded only when storage is missing or invalid; a valid empty workspace stays empty.
@@ -60,6 +59,6 @@ Static build output: `dist`. HashRouter uses URLs such as `/#/customers`, so ref
 With the server running, every create/edit/delete is sent to the API and stored in SQLite; the UI updates immediately and reloads from the server if a save is rejected. The top bar shows "Synced to server". If no API is reachable (e.g. the static GitHub Pages build), the app falls back to the old localStorage mode and shows "Browser workspace".
 
 ## Limitations
-This is an interview demo, not a production CRM. There is no authentication or authorization, so anyone who can reach the API can change the data. The GitHub Pages demo has no backend and keeps data in localStorage only. Concurrent edits are last-write-wins (no conflict resolution). Use fictional data only. Google Fonts needs internet; system sans-serif is the fallback.
+This is a portfolio project, not a production CRM. There is no authentication or authorization, so anyone who can reach the API can change the data. The GitHub Pages demo has no backend and keeps data in localStorage only. Concurrent edits are last-write-wins (no conflict resolution). Use fictional data only. Google Fonts needs internet; system sans-serif is the fallback.
 
 Future: authentication, authorization, cloud storage, pagination, CSV export and automated browser regression tests.
